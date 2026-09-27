@@ -1,130 +1,79 @@
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
 
-// Gunakan folder /tmp jika di Vercel/Production
-const FILE_PATH = process.env.NODE_ENV === 'production' || process.env.VERCEL
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Set EJS sebagai view engine (jika menggunakan EJS)
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Jalur file yang aman untuk Vercel Serverless
+const FILE_PATH = process.env.VERCEL || process.env.NODE_ENV === 'production'
   ? path.join('/tmp', 'catatan.json')
   : path.join(__dirname, 'catatan.json');
 
-// Fungsi membaca data dari file
+// Fungsi membaca data aman
 function bacaData() {
-  if (!fs.existsSync(FILE_PATH)) {
-    fs.writeFileSync(FILE_PATH, JSON.stringify([]));
+  try {
+    if (!fs.existsSync(FILE_PATH)) {
+      fs.writeFileSync(FILE_PATH, JSON.stringify([], null, 2), 'utf-8');
+      return [];
+    }
+    const data = fs.readFileSync(FILE_PATH, 'utf-8');
+    return JSON.parse(data || '[]');
+  } catch (error) {
+    console.error("Gagal membaca data:", error);
     return [];
   }
-  const data = fs.readFileSync(FILE_PATH, 'utf-8');
-  return JSON.parse(data || '[]');
 }
 
-// Fungsi menyimpan data ke file
+// Fungsi menyimpan data aman
 function simpanData(data) {
-  fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (error) {
+    console.error("Gagal menyimpan data:", error);
+  }
 }
 
-function getWaktuSekarang() {
-    const sekarang = new Date();
-    return sekarang.toLocaleString('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }) + ' WIB';
-}
-
-function formatRupiah(angka) {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0
-    }).format(angka);
-}
-
-// Halaman Utama
+// Route Utama
 app.get('/', (req, res) => {
-    let catatanList = bacaData();
-    let totalHarga = catatanList.reduce((acc, item) => acc + Number(item.harga || 0), 0);
-
-    let htmlDaftar = catatanList.map((item, index) => 
-        `<li style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px;">
-            <div>
-                <div><strong>${item.teks}</strong> - <span style="color: #28a745; font-weight: bold;">${formatRupiah(item.harga)}</span></div>
-                <div style="font-size: 12px; color: #666; margin-top: 2px;">📅 <i>${item.waktu}</i></div>
-            </div>
-            <div>
-                <a href="/hapus/${index}" style="color: red; text-decoration: none; font-weight: bold;">[Hapus]</a>
-            </div>
-        </li>`
-    ).join('');
-
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="id">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Catatan Keuangan HP</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; }
-                .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-                .form-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
-                input[type="text"], input[type="number"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-                button { padding: 12px; background-color: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 16px; font-weight: bold; }
-                ul { padding-left: 0; list-style: none; }
-                .total-box { background: #e9ecef; padding: 12px; border-radius: 6px; font-size: 16px; margin-top: 15px; text-align: right; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h2>📝 Catatan Keuangan</h2>
-                <form action="/tambah" method="POST" class="form-group">
-                    <input type="text" name="catatan" placeholder="Nama catatan/barang..." required />
-                    <input type="number" name="harga" placeholder="Harga (Rp)" required />
-                    <button type="submit">Tambah Catatan</button>
-                </form>
-
-                <h3>Daftar Pengeluaran:</h3>
-                <ul>${htmlDaftar || '<li>Belum ada catatan.</li>'}</ul>
-
-                <div class="total-box">
-                    <strong>Total:</strong> 
-                    <span style="color: #d9534f; font-size: 18px; font-weight: bold;">${formatRupiah(totalHarga)}</span>
-                </div>
-            </div>
-        </body>
-        </html>
-    `);
+  const catatanList = bacaData();
+  res.render('index', { catatanList });
 });
 
 // Route Tambah Data
 app.post('/tambah', (req, res) => {
-    const { catatan, harga } = req.body;
-    if (catatan) {
-        let catatanList = bacaData();
-        catatanList.push({
-            teks: catatan,
-            harga: Number(harga) || 0,
-            waktu: getWaktuSekarang()
-        });
-        simpanData(catatanList);
-    }
-    res.redirect('/');
+  const catatanList = bacaData();
+  const dataBaru = req.body;
+  catatanList.push(dataBaru);
+  simpanData(catatanList);
+  res.redirect('/');
 });
 
 // Route Hapus Data
 app.get('/hapus/:index', (req, res) => {
-    let catatanList = bacaData();
-    catatanList.splice(req.params.index, 1);
+  const catatanList = bacaData();
+  const index = parseInt(req.params.index, 10);
+  if (!isNaN(index) && index >= 0 && index < catatanList.length) {
+    catatanList.splice(index, 1);
     simpanData(catatanList);
-    res.redirect('/');
+  }
+  res.redirect('/');
 });
 
-// Hanya jalankan app.listen di lokal (bukan di Vercel)
-if (process.env.NODE_ENV !== 'production') {
+// Menjalankan server secara lokal
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server aktif di port ${PORT}`);
   });
 }
 
+// Export aplikasi untuk Vercel
 module.exports = app;
