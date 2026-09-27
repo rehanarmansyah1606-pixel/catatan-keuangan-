@@ -122,7 +122,11 @@ app.get('/hapus/:index', (req, res) => {
     res.redirect('/');
 });
 
-app.listen(PORT, () => {
+// Hanya jalankan app.listen di lokal (bukan di Vercel)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
     console.log(`Server aktif di port ${PORT}`);
-});
+  });
+}
+
 module.exports = app;
