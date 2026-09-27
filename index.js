@@ -125,3 +125,4 @@ app.get('/hapus/:index', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server aktif di port ${PORT}`);
 });
+module.exports = app;
