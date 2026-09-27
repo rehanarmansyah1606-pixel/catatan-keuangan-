@@ -1,26 +1,24 @@
-const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const app = express();
-const PORT = process.env.PORT || 3000;
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
-const FILE_PATH = path.join(__dirname, 'data.json');
+// Gunakan folder /tmp jika di Vercel/Production
+const FILE_PATH = process.env.NODE_ENV === 'production' || process.env.VERCEL
+  ? path.join('/tmp', 'catatan.json')
+  : path.join(__dirname, 'catatan.json');
 
 // Fungsi membaca data dari file
 function bacaData() {
-    if (!fs.existsSync(FILE_PATH)) {
-        fs.writeFileSync(FILE_PATH, JSON.stringify([]));
-    }
-    const raw = fs.readFileSync(FILE_PATH);
-    return JSON.parse(raw);
+  if (!fs.existsSync(FILE_PATH)) {
+    fs.writeFileSync(FILE_PATH, JSON.stringify([]));
+    return [];
+  }
+  const data = fs.readFileSync(FILE_PATH, 'utf-8');
+  return JSON.parse(data || '[]');
 }
 
 // Fungsi menyimpan data ke file
 function simpanData(data) {
-    fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
+  fs.writeFileSync(FILE_PATH, JSON.stringify(data, null, 2));
 }
 
 function getWaktuSekarang() {
